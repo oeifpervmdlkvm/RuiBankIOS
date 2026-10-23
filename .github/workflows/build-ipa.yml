@@ -1,0 +1,40 @@
+name: Build RuiBanque IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Compile and Package Unsigned IPA
+        run: |
+          mkdir -p build/Payload
+          
+          xcrun -sdk iphoneos swiftc -target arm64-apple-ios15.0 \
+            -import-objc-header /dev/null \
+            -framework UIKit -framework WebKit -framework SwiftUI \
+            RuiBanqueApp.swift ContentView.swift \
+            -o build/Payload/RuiBanque
+            
+          cp Info.plist build/Payload/
+          mv build/Payload build/RuiBanque.app
+          mkdir -p build/Payload
+          mv build/RuiBanque.app build/Payload/
+          
+          cd build
+          zip -r RuiBanque.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RuiBanque-iOS-App
+          path: build/RuiBanque.ipa
