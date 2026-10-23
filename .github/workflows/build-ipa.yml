@@ -14,15 +14,12 @@ jobs:
 
       - name: Compile and Package Unsigned IPA
         run: |
-          # 1. Clean folders
           rm -rf build
           mkdir -p build/Payload/RuiBanque.app
 
-          # 2. Get active iPhoneOS SDK path
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-          echo "Compiling against SDK: $SDK_PATH"
+          echo "Using SDK: $SDK_PATH"
 
-          # 3. Compile Swift directly without broken /dev/null bridging header
           xcrun -sdk iphoneos swiftc \
             -target arm64-apple-ios16.0 \
             -sdk "$SDK_PATH" \
@@ -34,17 +31,13 @@ jobs:
             -o build/Payload/RuiBanque.app/RuiBanque \
             RuiBanqueApp.swift ContentView.swift
 
-          # 4. Copy Info.plist into the bundle
           cp Info.plist build/Payload/RuiBanque.app/
-
-          # 5. Create valid PkgInfo identifier
           echo -n "APPL????" > build/Payload/RuiBanque.app/PkgInfo
 
-          # 6. Package Payload into IPA
           cd build
           zip -r -y RuiBanque.ipa Payload
 
-          echo "IPA generation completed successfully."
+          echo "IPA generation complete."
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
