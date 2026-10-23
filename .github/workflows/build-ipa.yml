@@ -1,6 +1,8 @@
 name: Build RuiBanque IPA
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -10,28 +12,39 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Compile and Package Unsigned IPA
+      - name: Select Xcode Version
         run: |
-          mkdir -p build/Payload
+          sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Compile App and Generate Unsigned IPA
+        run: |
+          # 1. Prepare clean directories
+          rm -rf build
+          mkdir -p build/Payload/RuiBanque.app
           
-          xcrun -sdk iphoneos swiftc -target arm64-apple-ios15.0 \
-            -import-objc-header /dev/null \
-            -framework UIKit -framework WebKit -framework SwiftUI \
-            RuiBanqueApp.swift ContentView.swift \
-            -o build/Payload/RuiBanque
+          # 2. Get exact iOS SDK path
+          SDK_PATH=$(xcrun --show-sdk-path --sdk iphoneos)
+          echo "Using SDK: $SDK_PATH"
+          
+          # 3. Compile SwiftUI sources targeting real iOS devices (arm64)
+          xcrun -sdk iphoneos swiftc \
+            -target arm64-apple-ios16.0 \
+            -sdk "$SDK_PATH" \
+            -parse-as-library \
+            -framework UIKit \
+            -framework WebKit \
+            -framework SwiftUI \
+            -emit-executable \
+            -o build/Payload/RuiBanque.app/RuiBanque \
+            RuiBanqueApp.swift ContentView.swift
             
-          cp Info.plist build/Payload/
-          mv build/Payload build/RuiBanque.app
-          mkdir -p build/Payload
-          mv build/RuiBanque.app build/Payload/
+          # 4. Copy Info.plist into the app bundle
+          cp Info.plist build/Payload/RuiBanque.app/
           
+          # 5. Package into IPA archive
           cd build
-          zip -r RuiBanque.ipa Payload
+          zip -r -y RuiBanque.ipa Payload/
+          echo "Build successful! Created RuiBanque.ipa"
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
